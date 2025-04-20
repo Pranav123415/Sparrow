@@ -1,0 +1,692 @@
+:root {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-color: #e0e0e0;
+    --accent: #ffd54f;
+    --accent-hover: #ffea97;
+    --header-height: 70px;
+    --search-height: 140px;
+    --superman-color: #ff69b4;
+    --lila-amrita-color: #00ffff; /* Bright cyan for The Empowered Ācārya */
+    --sb-color: #cd853f; /* Bright brown for Śrīmad Bhāgavatam */
+    --cc-color: #00cc66; /* Dark bright green for Śrī Caitanya-caritāmṛta */
+    --bgatis-color: #ff3333; /* Bright red for Bhagavad-gītā As It Is */
+    --btn-bg: rgba(255, 213, 79, 0.15);
+    --btn-border: rgba(255, 213, 79, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    line-height: 1.6;
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* Update the header and search container positioning */
+.header {
+    background-color: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(10px);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+}
+
+/* Fix the search container positioning */
+.search-container {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: var(--bg-color);
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Fix the content positioning to prevent overlap */
+.content {
+    padding-top: calc(var(--header-height) + var(--search-height) + 20px);
+    min-height: 100vh;
+}
+
+/* Keep the original suggestions styling but fix positioning */
+#suggestions {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 10px 15px;
+    max-width: 800px;
+    margin: 0 auto 1rem auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 95;
+}
+
+/* Keep the original quote card styling */
+.quote-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    border-left: 4px solid var(--accent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quote-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.suggestion-title {
+    font-size: 1rem;
+    color: #bbb;
+    margin-bottom: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.suggestion-word {
+    background: rgba(255, 213, 79, 0.15);
+    color: var(--accent);
+    padding: 8px 16px;
+    border-radius: 24px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: 1px solid rgba(255, 213, 79, 0.2);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.suggestion-word:hover {
+    background: rgba(255, 213, 79, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Update content container for a more aesthetic look */
+.content .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* Clean up the results display for a vertical list */
+#results {
+    display: block;
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+/* Fix the quote card styling for a cleaner look */
+.quote-card {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 1.5rem 1.8rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: block;
+    height: auto;
+}
+
+.quote-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Fix the statement and ref styling */
+.statement {
+    font-family: 'Lora', serif;
+    font-size: 1.15rem;
+    line-height: 1.7;
+    margin-bottom: 0.8rem;
+    font-weight: 300;
+}
+
+.ref {
+    font-size: 0.95rem;
+    color: #bbb;
+    font-style: italic;
+    font-family: 'Lora', serif;
+}
+
+/* Fix container positioning to prevent overlap */
+.header {
+    background-color: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(10px);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+}
+
+.search-container {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: var(--bg-color);
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.content {
+    padding-top: calc(var(--header-height) + var(--search-height) + 20px);
+    min-height: 100vh;
+}
+
+/* Fix the container width for better aesthetics */
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* Fix suggestions positioning to be centered on screen */
+#suggestions {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 15px 20px;
+    max-width: 800px;
+    width: 90%;
+    margin: 0 auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 150;
+    display: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.quote-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.statement {
+    font-family: 'Lora', serif;
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 16px;
+    flex-grow: 1;
+}
+
+.ref {
+    font-size: 0.9rem;
+    color: #aaa;
+    font-style: italic;
+    margin-top: auto;
+}
+
+/* Update content positioning to ensure it starts after search container */
+.content {
+    padding-top: calc(var(--header-height) + var(--search-height) + 30px);
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Update for mobile responsiveness */
+@media (max-width: 768px) {
+    :root {
+        --search-height: 160px; /* Increase for mobile */
+    }
+    
+    .content {
+        padding-top: calc(var(--header-height) + var(--search-height) + 30px);
+    }
+}
+
+/* Improve the loading indicator */
+#loading {
+    text-align: center;
+    margin: 2rem auto;
+    font-size: 1.2rem;
+    color: var(--accent);
+    display: none;
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 1rem;
+    max-width: 300px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.suggestion-title {
+    font-size: 0.95rem;
+    color: #aaa;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.suggestion-word {
+    background: rgba(255, 213, 79, 0.15);
+    color: var(--accent);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(255, 213, 79, 0.2);
+    font-weight: 500;
+}
+
+.suggestion-word:hover {
+    background: rgba(255, 213, 79, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.search-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: 'Montserrat', sans-serif;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(255, 213, 79, 0.2);
+}
+
+input[type="text"]::placeholder {
+    color: #aaa;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+}
+
+.quote-card {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    padding: 1.5rem 1.8rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.quote-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.quote-card.superman {
+    border-left: 4px solid var(--superman-color);
+}
+
+.quote-card.lila-amrita {
+    border-left: 4px solid var(--lila-amrita-color);
+}
+
+.quote-card.sb {
+    border-left: 4px solid var(--sb-color);
+}
+
+.quote-card.cc {
+    border-left: 4px solid var(--cc-color);
+}
+
+.quote-card.bgatis {
+    border-left: 4px solid var(--bgatis-color);
+}
+
+.statement {
+    font-size: 1.15rem;
+    margin-bottom: 0.8rem;
+    line-height: 1.7;
+    font-weight: 300;
+    font-family: 'Lora', serif;
+}
+
+.ref {
+    font-size: 0.95rem;
+    color: #bbb;
+    font-style: italic;
+    font-family: 'Lora', serif;
+}
+
+#loading {
+    text-align: center;
+    margin: 2rem;
+    font-size: 1.2rem;
+    color: var(--accent);
+    display: none;
+}
+
+.content {
+    padding-top: calc(var(--header-height) + var(--search-height) + 1rem);
+    min-height: 100vh;
+    position: relative;
+}
+
+.btn {
+    border: none;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn i {
+    font-size: 0.9rem;
+}
+
+.refresh-btn {
+    background: var(--btn-bg);
+    color: var(--accent);
+    border: 1px solid var(--btn-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.refresh-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 213, 79, 0.2), transparent);
+    transition: all 0.6s ease;
+    z-index: -1;
+}
+
+.refresh-btn:hover::before {
+    left: 100%;
+}
+
+.refresh-btn:hover {
+    background: rgba(255, 213, 79, 0.25);
+    border-color: rgba(255, 213, 79, 0.5);
+    box-shadow: 0 4px 12px rgba(255, 213, 79, 0.25);
+}
+
+.copy-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: rgba(30, 30, 30, 0.8);
+    color: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    backdrop-filter: blur(5px);
+}
+
+.copy-btn:hover {
+    transform: scale(1.05);
+}
+
+.quote-card:hover .copy-btn {
+    opacity: 1;
+}
+
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #000;
+    padding: 12px 24px;
+    border-radius: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 1rem;
+}
+
+.filter-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.filter-chip:hover {
+    background: rgba(255, 213, 79, 0.2);
+    transform: translateY(-1px);
+}
+
+.filter-chip.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(255, 213, 79, 0.3);
+}
+
+.filter-chip[data-topic="superman"] {
+    background: rgba(255, 105, 180, 0.15);
+    border-color: rgba(255, 105, 180, 0.3);
+    display: none;
+    /* Hide Superman filter chip */
+}
+
+.filter-chip[data-topic="lila-amrita"] {
+    background: rgba(0, 255, 255, 0.15);
+    border-color: rgba(0, 255, 255, 0.3);
+}
+
+.filter-chip[data-topic="lila-amrita"]:hover,
+.filter-chip[data-topic="lila-amrita"].active {
+    background: var(--lila-amrita-color);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(0, 255, 255, 0.3);
+}
+
+/* New filter styles for Śrīmad Bhāgavatam */
+.filter-chip[data-topic="sb"] {
+    background: rgba(205, 133, 63, 0.15);
+    border-color: rgba(205, 133, 63, 0.3);
+}
+
+.filter-chip[data-topic="sb"]:hover,
+.filter-chip[data-topic="sb"].active {
+    background: var(--sb-color);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(205, 133, 63, 0.3);
+}
+
+/* New filter styles for Śrī Caitanya-caritāmṛta */
+.filter-chip[data-topic="cc"] {
+    background: rgba(177, 156, 217, 0.15);
+    border-color: rgba(177, 156, 217, 0.3);
+}
+
+.filter-chip[data-topic="cc"]:hover,
+.filter-chip[data-topic="cc"].active {
+    background: var(--cc-color);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(177, 156, 217, 0.3);
+}
+
+/* New filter styles for Bhagavad-gītā As It Is */
+.filter-chip[data-topic="bgatis"] {
+    background: rgba(102, 187, 106, 0.15);
+    border-color: rgba(102, 187, 106, 0.3);
+}
+
+.filter-chip[data-topic="bgatis"]:hover,
+.filter-chip[data-topic="bgatis"].active {
+    background: var(--bgatis-color);
+    color: #000;
+    box-shadow: 0 2px 6px rgba(102, 187, 106, 0.3);
+}
+
+.no-results {
+    text-align: center;
+    margin: 3rem 0;
+    color: #888;
+    font-size: 1.1rem;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.suggestion {
+    text-align: center;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+    color: #aaa;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.suggestion span {
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: underline;
+    margin: 0 3px;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.search-filters-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.search-filters-wrapper .search-wrapper {
+    flex: 1;
+    margin-bottom: 0;
+    margin-right: 10px;
+}
+
+.search-filters-wrapper .actions {
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+
+    h1 {
+        font-size: 1.3rem;
+    }
+
+    .quote-card {
+        padding: 1.2rem 1.5rem;
+    }
+
+    .statement {
+        font-size: 1.05rem;
+    }
+
+    .search-filters-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-filters-wrapper .search-wrapper {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .actions {
+        justify-content: flex-end;
+    }
+
+    .content {
+        padding-top: calc(var(--header-height) + 160px);
+    }
+}
