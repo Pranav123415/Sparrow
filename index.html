@@ -32,6 +32,9 @@
                     <button id="refreshBtn" class="btn refresh-btn">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
+                    <button id="addQuoteBtn" class="btn add-quote-btn">
+                        <i class="fas fa-plus"></i> Add Quote
+                    </button>
                 </div>
             </div>
 
@@ -49,7 +52,47 @@
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- Add this before the closing body tag -->
+    <div id="quoteModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Add New Quote</h2>
+            <form id="quoteForm">
+                <div class="form-group">
+                    <label for="quoteStatement">Quote Text</label>
+                    <textarea id="quoteStatement" required placeholder="Enter the quote text..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="quoteReference">Reference</label>
+                    <input type="text" id="quoteReference" required placeholder="e.g., Śrīla Prabhupāda lecture on Bg 2.48 in New York in 1966">
+                </div>
+                <div class="form-group">
+                    <label for="quoteSpeaker">Speaker</label>
+                    <input type="text" id="quoteSpeaker" placeholder="e.g., Śrīla Prabhupāda" value="Śrīla Prabhupāda">
+                </div>
+                <div class="form-group">
+                    <label for="quoteCategory">Category</label>
+                    <select id="quoteCategory">
+                        <option value="general">General</option>
+                        <option value="superman">Superman</option>
+                        <option value="lila-amrita">The Empowered Ācārya</option>
+                        <option value="sb">Śrīmad Bhāgavatam</option>
+                        <option value="cc">Śrī Caitanya-caritāmṛta</option>
+                        <option value="bgatis">Bhagavad-gītā As It Is</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quoteKeywords">Keywords (comma separated)</label>
+                    <input type="text" id="quoteKeywords" placeholder="e.g., karma, duty, detachment">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn submit-btn">Submit Quote</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
 
     <script src="app.js"></script>
 </body>

@@ -9,6 +9,7 @@ const state = {
     currentResults: [] // Added to store current results for filter operations
 };
 
+// Add these to the elements object
 const elements = {
     searchInput: document.getElementById('search'),
     loading: document.getElementById('loading'),
@@ -16,28 +17,211 @@ const elements = {
     suggestions: document.getElementById('suggestions'),
     filtersContainer: document.getElementById('filters'),
     toast: document.getElementById('toast'),
-    refreshBtn: document.getElementById('refreshBtn')
+    refreshBtn: document.getElementById('refreshBtn'),
+    // Add new elements
+    addQuoteBtn: document.getElementById('addQuoteBtn'),
+    quoteModal: document.getElementById('quoteModal'),
+    quoteForm: document.getElementById('quoteForm'),
+    closeModal: document.querySelector('.close-modal')
 };
 
+// Add these event listeners to the DOMContentLoaded event
 document.addEventListener('DOMContentLoaded', () => {
     loadQuotes();
     elements.searchInput.addEventListener('input', debounce(handleSearch, 300));
     elements.refreshBtn.addEventListener('click', refreshQuotes);
     renderFilters();
+    
+    // Add quote modal functionality
+    elements.addQuoteBtn.addEventListener('click', openQuoteModal);
+    elements.closeModal.addEventListener('click', closeQuoteModal);
+    elements.quoteForm.addEventListener('submit', handleQuoteSubmission);
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === elements.quoteModal) {
+            closeQuoteModal();
+        }
+    });
 });
 
-function refreshQuotes() {
-    loadQuotes();
-    showToast("Quotes refreshed successfully");
+// Add these functions for the quote modal
+function openQuoteModal() {
+    elements.quoteModal.style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Prevent scrolling
 }
 
+function closeQuoteModal() {
+    elements.quoteModal.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Re-enable scrolling
+    elements.quoteForm.reset(); // Clear the form
+}
+
+function handleQuoteSubmission(e) {
+    e.preventDefault();
+    
+    // Get form values
+    const statement = document.getElementById('quoteStatement').value.trim();
+    const reference = document.getElementById('quoteReference').value.trim();
+    const speaker = document.getElementById('quoteSpeaker').value.trim();
+    const category = document.getElementById('quoteCategory').value;
+    const keywords = document.getElementById('quoteKeywords').value.trim()
+        .split(',')
+        .map(keyword => keyword.trim())
+        .filter(keyword => keyword.length > 0);
+    
+    // Create tags based on category
+    const tags = [];
+    if (category !== 'general') {
+        tags.push(`quotecard:${category}`);
+    }
+    
+    // Add keywords as tags
+    keywords.forEach(keyword => {
+        if (!tags.includes(keyword)) {
+            tags.push(keyword);
+        }
+    });
+    
+    // Create the new quote object
+    const newQuote = {
+        ref: reference,
+        speaker: speaker,
+        date: extractDateFromReference(reference),
+        location: extractLocationFromReference(reference),
+        lecture: extractLectureFromReference(reference),
+        statements: [
+            {
+                statement: statement,
+                tags: tags,
+                keywords: keywords,
+                id: generateUniqueId()
+            }
+        ]
+    };
+    
+    // Here we would normally send this to a server
+    // For now, we'll add it to the local state and show a success message
+    addQuoteToLocalState(newQuote);
+    
+    // Close the modal and show success message
+    closeQuoteModal();
+    showToast("Quote added successfully!");
+}
+
+// Helper functions for quote submission
+function extractDateFromReference(ref) {
+    const dateMatch = ref.match(/\b(19|20)\d{2}\b/);
+    return dateMatch ? dateMatch[0] : "";
+}
+
+function extractLocationFromReference(ref) {
+    const commonLocations = ["New York", "London", "Mayapur", "Vrindavan", "Bombay", "Los Angeles", "Tokyo"];
+    for (const location of commonLocations) {
+        if (ref.includes(location)) {
+            return location;
+        }
+    }
+    return "";
+}
+
+function extractLectureFromReference(ref) {
+    const lectureMatch = ref.match(/lecture on (.+?)(?=\s+in\s+|$)/i);
+    return lectureMatch ? lectureMatch[0] : "";
+}
+
+function generateUniqueId() {
+    return 'quote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function addQuoteToLocalState(newQuote) {
+    // Add to state.quotes
+    state.quotes.push(newQuote);
+    
+    // Process the quote to add to flatQuotes
+    const scriptureInfo = extractScriptureInfo(newQuote.ref);
+    
+    newQuote.statements.forEach((item, index) => {
+        const topics = [];
+        
+        if (item.tags && Array.isArray(item.tags)) {
+            item.tags.forEach(tag => {
+                let normalizedTag = tag;
+                if (tag.includes("superman")) normalizedTag = "superman";
+                if (tag.includes("lila-amrita")) normalizedTag = "lila-amrita";
+                if (tag.toLowerCase().includes("sb")) normalizedTag = "sb";
+                if (tag.toLowerCase().includes("cc")) normalizedTag = "cc";
+                if (tag.toLowerCase().includes("bgatis")) normalizedTag = "bgatis";
+                
+                topics.push(normalizedTag);
+                addWordToMap(normalizedTag, state.commonWords);
+            });
+        }
+        
+        if (item.keywords && Array.isArray(item.keywords)) {
+            item.keywords.forEach(keyword => {
+                topics.push(keyword);
+                addWordToMap(keyword, state.commonWords);
+            });
+        }
+        
+        // Add to flatQuotes
+        state.flatQuotes.push({
+            ...item,
+            ref: newQuote.ref,
+            topics: topics,
+            scriptureCode: scriptureInfo.scriptureCode,
+            chapter: scriptureInfo.chapter,
+            verse: scriptureInfo.verse,
+            speaker: newQuote.speaker || "",
+            lecture: newQuote.lecture || ""
+        });
+        
+        // Add words to commonWords
+        const words = item.statement.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+        words.forEach(word => addWordToMap(word, state.commonWords));
+    });
+    
+    // Update current results and render
+    state.currentResults = state.flatQuotes;
+    renderResults(state.flatQuotes);
+    
+    // Save to localStorage for persistence
+    saveQuotesToLocalStorage();
+}
+
+// Add this function to save quotes to localStorage
+function saveQuotesToLocalStorage() {
+    try {
+        localStorage.setItem('prabhupada_quotes', JSON.stringify(state.quotes));
+    } catch (error) {
+        console.error("Error saving quotes to localStorage:", error);
+    }
+}
+
+// Modify the loadQuotes function to check localStorage first
 async function loadQuotes() {
     try {
         elements.loading.style.display = 'block';
+        
+        // Try to load from localStorage first
+        const savedQuotes = localStorage.getItem('prabhupada_quotes');
+        if (savedQuotes) {
+            state.quotes = JSON.parse(savedQuotes);
+            processQuotes();
+            elements.loading.style.display = 'none';
+            return;
+        }
+        
+        // If no localStorage data, fetch from file
         const response = await fetch("quotes.json?v=" + new Date().getTime());
         if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
         state.quotes = await response.json();
         processQuotes();
+        
+        // Save to localStorage for future use
+        saveQuotesToLocalStorage();
+        
         elements.loading.style.display = 'none';
     } catch (error) {
         console.error("Error loading quotes:", error);
