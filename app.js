@@ -378,6 +378,8 @@ function handleSearch() {
                     wordEl.addEventListener('click', () => {
                         elements.searchInput.value = word;
                         handleSearch();
+                        // Close suggestions after selection
+                        elements.suggestions.style.display = 'none';
                     });
                     suggestionsList.appendChild(wordEl);
                 });
@@ -389,6 +391,9 @@ function handleSearch() {
                 
                 // Add click outside to close suggestions
                 document.addEventListener('click', closeSuggestionsOnClickOutside);
+                
+                // Add touch event for mobile
+                document.addEventListener('touchstart', closeSuggestionsOnClickOutside);
             }
         }
     }
