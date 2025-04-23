@@ -6,7 +6,12 @@ const state = {
         topics: ["superman", "lila-amrita", "sb", "cc", "bgatis"],
         activeFilters: new Set()
     },
-    currentResults: [] // Added to store current results for filter operations
+    currentResults: [], // Added to store current results for filter operations
+    auth: {
+        isAuthenticated: false,
+        validUsername: 'MohanaKrishnaDasa',
+        validPassword: 'AGTSP'
+    }
 };
 
 // Add these to the elements object
@@ -22,8 +27,31 @@ const elements = {
     addQuoteBtn: document.getElementById('addQuoteBtn'),
     quoteModal: document.getElementById('quoteModal'),
     quoteForm: document.getElementById('quoteForm'),
-    closeModal: document.querySelector('.close-modal')
+    closeModal: document.querySelector('.close-modal'),
+    // Authentication elements
+    loginSection: document.getElementById('loginSection'),
+    loginBtn: document.getElementById('loginBtn'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    username: document.getElementById('username'),
+    password: document.getElementById('password')
 };
+
+// Function to show toast messages
+function showToast(message, type = '') {
+    const toast = elements.toast;
+    toast.textContent = message;
+    toast.className = 'toast';
+    
+    if (type === 'error') {
+        toast.classList.add('error');
+    }
+    
+    toast.style.opacity = '1';
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+    }, 3000);
+}
 
 // Add these event listeners to the DOMContentLoaded event
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,28 +65,107 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.closeModal.addEventListener('click', closeQuoteModal);
     elements.quoteForm.addEventListener('submit', handleQuoteSubmission);
     
+    // Authentication event listeners
+    elements.loginBtn.addEventListener('click', handleLogin);
+    elements.logoutBtn.addEventListener('click', handleLogout);
+    
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === elements.quoteModal) {
             closeQuoteModal();
         }
     });
+    
+    // Add click event listeners to suggestion words
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('suggestion-word')) {
+            const word = e.target.textContent.trim();
+            elements.searchInput.value = word;
+            handleSearch();
+            elements.suggestions.style.display = 'none';
+        }
+    });
+    
+    // Check if user is already authenticated (from session storage)
+    checkAuthStatus();
 });
 
 // Add these functions for the quote modal
 function openQuoteModal() {
+    // Make sure the modal is visible
     elements.quoteModal.style.display = 'block';
     document.body.style.overflow = 'hidden'; // Prevent scrolling
+    
+    // Show appropriate section based on authentication status
+    if (state.auth.isAuthenticated) {
+        elements.loginSection.style.display = 'none';
+        elements.quoteForm.style.display = 'block';
+    } else {
+        elements.loginSection.style.display = 'block';
+        elements.quoteForm.style.display = 'none';
+    }
+    
+    // Reset form fields if authenticated
+    if (state.auth.isAuthenticated) {
+        elements.quoteForm.reset();
+    }
 }
 
 function closeQuoteModal() {
     elements.quoteModal.style.display = 'none';
     document.body.style.overflow = 'auto'; // Re-enable scrolling
     elements.quoteForm.reset(); // Clear the form
+    elements.username.value = '';
+    elements.password.value = '';
+}
+
+// Authentication functions
+function handleLogin(e) {
+    e.preventDefault();
+    
+    const username = elements.username.value.trim();
+    const password = elements.password.value.trim();
+    
+    if (username === state.auth.validUsername && password === state.auth.validPassword) {
+        state.auth.isAuthenticated = true;
+        sessionStorage.setItem('isAuthenticated', 'true');
+        
+        // Show quote form, hide login section
+        elements.loginSection.style.display = 'none';
+        elements.quoteForm.style.display = 'block';
+        
+        showToast('Login successful!');
+    } else {
+        showToast('Invalid username or password!');
+    }
+}
+
+function handleLogout() {
+    state.auth.isAuthenticated = false;
+    sessionStorage.removeItem('isAuthenticated');
+    
+    // Show login section, hide quote form
+    elements.loginSection.style.display = 'block';
+    elements.quoteForm.style.display = 'none';
+    
+    showToast('Logged out successfully!');
+}
+
+function checkAuthStatus() {
+    const isAuthenticated = sessionStorage.getItem('isAuthenticated');
+    if (isAuthenticated === 'true') {
+        state.auth.isAuthenticated = true;
+    }
 }
 
 function handleQuoteSubmission(e) {
     e.preventDefault();
+    
+    // Check if user is authenticated
+    if (!state.auth.isAuthenticated) {
+        showToast('You must be logged in to add quotes!', 'error');
+        return;
+    }
     
     // Get form values
     const statement = document.getElementById('quoteStatement').value.trim();
@@ -69,6 +176,17 @@ function handleQuoteSubmission(e) {
         .split(',')
         .map(keyword => keyword.trim())
         .filter(keyword => keyword.length > 0);
+    
+    // Validate required fields
+    if (!statement) {
+        showToast('Please enter a quote statement', 'error');
+        return;
+    }
+    
+    if (!reference) {
+        showToast('Please enter a reference', 'error');
+        return;
+    }
     
     // Create tags based on category
     const tags = [];
@@ -100,13 +218,13 @@ function handleQuoteSubmission(e) {
         ]
     };
     
-    // Here we would normally send this to a server
-    // For now, we'll add it to the local state and show a success message
+    // Add to local state and save to quotes.json
     addQuoteToLocalState(newQuote);
+    saveQuoteToFile(newQuote);
     
     // Close the modal and show success message
     closeQuoteModal();
-    showToast("Quote added successfully!");
+    // Note: Success toast is now shown in saveQuoteToFile function
 }
 
 // Helper functions for quote submission
@@ -200,33 +318,69 @@ function saveQuotesToLocalStorage() {
 }
 
 // Modify the loadQuotes function to check localStorage first
-async function loadQuotes() {
+// async function loadQuotes() {
+//     try {
+//         elements.loading.style.display = 'block';
+        
+//         // Try to load from localStorage first
+//         const savedQuotes = localStorage.getItem('prabhupada_quotes');
+//         if (savedQuotes) {
+//             state.quotes = JSON.parse(savedQuotes);
+//             processQuotes();
+//             elements.loading.style.display = 'none';
+//             return;
+//         }
+        
+//         // If no localStorage data, fetch from file
+//         const response = await fetch("quotes.json?v=" + new Date().getTime());
+//         if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
+//         state.quotes = await response.json();
+//         processQuotes();
+        
+//         // Save to localStorage for future use
+//         saveQuotesToLocalStorage();
+        
+//         elements.loading.style.display = 'none';
+//     } catch (error) {
+//         console.error("Error loading quotes:", error);
+//         elements.loading.style.display = 'none';
+//         elements.results.innerHTML = `<div class="error">Error loading quotes: ${error.message}</div>`;
+//     }
+// }
+
+// Function to save quote to quotes.json file
+async function saveQuoteToFile(newQuote) {
     try {
         elements.loading.style.display = 'block';
         
-        // Try to load from localStorage first
-        const savedQuotes = localStorage.getItem('prabhupada_quotes');
-        if (savedQuotes) {
-            state.quotes = JSON.parse(savedQuotes);
-            processQuotes();
-            elements.loading.style.display = 'none';
-            return;
+        // Send the new quote to our server endpoint to update quotes.json
+        const response = await fetch('/api/quotes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(newQuote)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save quote');
         }
         
-        // If no localStorage data, fetch from file
-        const response = await fetch("quotes.json?v=" + new Date().getTime());
-        if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
-        state.quotes = await response.json();
-        processQuotes();
-        
-        // Save to localStorage for future use
+        // Update local state
+        state.quotes.push(newQuote);
         saveQuotesToLocalStorage();
         
+        // Refresh the quotes display
+        processQuotes();
+        
         elements.loading.style.display = 'none';
+        console.log('Quote saved successfully to quotes.json!');
+        showToast("Quote added successfully to permanent storage!");
     } catch (error) {
-        console.error("Error loading quotes:", error);
+        console.error("Error saving quote to file:", error);
         elements.loading.style.display = 'none';
-        elements.results.innerHTML = `<div class="error">Error loading quotes: ${error.message}</div>`;
+        showToast("Error saving quote. Please try again.", "error");
     }
 }
 
@@ -500,8 +654,12 @@ function copyToClipboard(text) {
         });
 }
 
-function showToast(message) {
+function showToast(message, type = 'success') {
     elements.toast.textContent = message;
+    elements.toast.className = 'toast'; // Reset classes
+    if (type === 'error') {
+        elements.toast.classList.add('error');
+    }
     elements.toast.style.opacity = 1;
 
     setTimeout(() => {
@@ -691,6 +849,33 @@ function extractPhrases(query) {
     }
 
     return phrases;
+}
+
+// Function to refresh quotes from the server
+async function refreshQuotes() {
+    try {
+        elements.loading.style.display = 'block';
+        
+        // Clear localStorage to force a fresh fetch
+        localStorage.removeItem('prabhupada_quotes');
+        
+        // Fetch from file with cache-busting parameter
+        const response = await fetch("quotes.json?v=" + new Date().getTime());
+        if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
+        
+        state.quotes = await response.json();
+        processQuotes();
+        
+        // Save to localStorage for future use
+        saveQuotesToLocalStorage();
+        
+        elements.loading.style.display = 'none';
+        showToast('Quotes refreshed successfully!');
+    } catch (error) {
+        console.error("Error refreshing quotes:", error);
+        elements.loading.style.display = 'none';
+        showToast("Error refreshing quotes. Please try again.", "error");
+    }
 }
 
 function enhancedSearch(query) {

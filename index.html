@@ -57,7 +57,25 @@
         <div class="modal-content">
             <span class="close-modal">&times;</span>
             <h2>Add New Quote</h2>
-            <form id="quoteForm">
+            
+            <!-- Login Section -->
+            <div id="loginSection">
+                <p class="auth-message">Authentication required to add quotes</p>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password">
+                </div>
+                <div class="form-actions">
+                    <button id="loginBtn" class="btn login-btn">Login</button>
+                </div>
+            </div>
+            
+            <!-- Quote Form Section (initially hidden) -->
+            <form id="quoteForm" style="display: none;">
                 <div class="form-group">
                     <label for="quoteStatement">Quote Text</label>
                     <textarea id="quoteStatement" required placeholder="Enter the quote text..."></textarea>
@@ -87,6 +105,7 @@
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit Quote</button>
+                    <button type="button" id="logoutBtn" class="btn logout-btn">Logout</button>
                 </div>
             </form>
         </div>
