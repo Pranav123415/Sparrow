@@ -6,15 +6,16 @@ const state = {
         topics: ["superman", "lila-amrita", "sb", "cc", "bgatis"],
         activeFilters: new Set()
     },
-    currentResults: [], // Added to store current results for filter operations
+    currentResults: [], // Store current results for filter operations
     auth: {
         isAuthenticated: false,
         validUsername: 'MohanaKrishnaDasa',
         validPassword: 'AGTSP'
-    }
+    },
+    deletedQuotes: [], // Store deleted quotes for undo functionality
+    isProcessing: false // Flag to prevent duplicate processing
 };
 
-// Add these to the elements object
 const elements = {
     searchInput: document.getElementById('search'),
     loading: document.getElementById('loading'),
@@ -23,7 +24,7 @@ const elements = {
     filtersContainer: document.getElementById('filters'),
     toast: document.getElementById('toast'),
     refreshBtn: document.getElementById('refreshBtn'),
-    // Add new elements
+    // Quote management elements
     addQuoteBtn: document.getElementById('addQuoteBtn'),
     quoteModal: document.getElementById('quoteModal'),
     quoteForm: document.getElementById('quoteForm'),
@@ -33,7 +34,9 @@ const elements = {
     loginBtn: document.getElementById('loginBtn'),
     logoutBtn: document.getElementById('logoutBtn'),
     username: document.getElementById('username'),
-    password: document.getElementById('password')
+    password: document.getElementById('password'),
+    // Undo functionality
+    undoBtn: document.getElementById('undoBtn')
 };
 
 // Function to show toast messages
@@ -53,7 +56,6 @@ function showToast(message, type = '') {
     }, 3000);
 }
 
-// Add these event listeners to the DOMContentLoaded event
 document.addEventListener('DOMContentLoaded', () => {
     loadQuotes();
     elements.searchInput.addEventListener('input', debounce(handleSearch, 300));
@@ -68,6 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Authentication event listeners
     elements.loginBtn.addEventListener('click', handleLogin);
     elements.logoutBtn.addEventListener('click', handleLogout);
+    
+    // Undo functionality
+    if (elements.undoBtn) {
+        elements.undoBtn.addEventListener('click', handleUndo);
+        // Initially hide the undo button
+        elements.undoBtn.style.display = 'none';
+    }
     
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
@@ -253,59 +262,67 @@ function generateUniqueId() {
 }
 
 function addQuoteToLocalState(newQuote) {
-    // Add to state.quotes
-    state.quotes.push(newQuote);
+    // Prevent duplicate processing
+    if (state.isProcessing) return;
+    state.isProcessing = true;
     
-    // Process the quote to add to flatQuotes
-    const scriptureInfo = extractScriptureInfo(newQuote.ref);
-    
-    newQuote.statements.forEach((item, index) => {
-        const topics = [];
+    try {
+        // Add to state.quotes
+        state.quotes.push(newQuote);
         
-        if (item.tags && Array.isArray(item.tags)) {
-            item.tags.forEach(tag => {
-                let normalizedTag = tag;
-                if (tag.includes("superman")) normalizedTag = "superman";
-                if (tag.includes("lila-amrita")) normalizedTag = "lila-amrita";
-                if (tag.toLowerCase().includes("sb")) normalizedTag = "sb";
-                if (tag.toLowerCase().includes("cc")) normalizedTag = "cc";
-                if (tag.toLowerCase().includes("bgatis")) normalizedTag = "bgatis";
-                
-                topics.push(normalizedTag);
-                addWordToMap(normalizedTag, state.commonWords);
+        // Process the quote to add to flatQuotes
+        const scriptureInfo = extractScriptureInfo(newQuote.ref);
+        
+        newQuote.statements.forEach((item, index) => {
+            const topics = [];
+            
+            if (item.tags && Array.isArray(item.tags)) {
+                item.tags.forEach(tag => {
+                    let normalizedTag = tag;
+                    if (tag.includes("superman")) normalizedTag = "superman";
+                    if (tag.includes("lila-amrita")) normalizedTag = "lila-amrita";
+                    if (tag.toLowerCase().includes("sb")) normalizedTag = "sb";
+                    if (tag.toLowerCase().includes("cc")) normalizedTag = "cc";
+                    if (tag.toLowerCase().includes("bgatis")) normalizedTag = "bgatis";
+                    
+                    topics.push(normalizedTag);
+                    addWordToMap(normalizedTag, state.commonWords);
+                });
+            }
+            
+            if (item.keywords && Array.isArray(item.keywords)) {
+                item.keywords.forEach(keyword => {
+                    topics.push(keyword);
+                    addWordToMap(keyword, state.commonWords);
+                });
+            }
+            
+            // Add to flatQuotes
+            state.flatQuotes.push({
+                ...item,
+                ref: newQuote.ref,
+                topics: topics,
+                scriptureCode: scriptureInfo.scriptureCode,
+                chapter: scriptureInfo.chapter,
+                verse: scriptureInfo.verse,
+                speaker: newQuote.speaker || "",
+                lecture: newQuote.lecture || ""
             });
-        }
-        
-        if (item.keywords && Array.isArray(item.keywords)) {
-            item.keywords.forEach(keyword => {
-                topics.push(keyword);
-                addWordToMap(keyword, state.commonWords);
-            });
-        }
-        
-        // Add to flatQuotes
-        state.flatQuotes.push({
-            ...item,
-            ref: newQuote.ref,
-            topics: topics,
-            scriptureCode: scriptureInfo.scriptureCode,
-            chapter: scriptureInfo.chapter,
-            verse: scriptureInfo.verse,
-            speaker: newQuote.speaker || "",
-            lecture: newQuote.lecture || ""
+            
+            // Add words to commonWords
+            const words = item.statement.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+            words.forEach(word => addWordToMap(word, state.commonWords));
         });
         
-        // Add words to commonWords
-        const words = item.statement.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-        words.forEach(word => addWordToMap(word, state.commonWords));
-    });
-    
-    // Update current results and render
-    state.currentResults = state.flatQuotes;
-    renderResults(state.flatQuotes);
-    
-    // Save to localStorage for persistence
-    saveQuotesToLocalStorage();
+        // Update current results and render
+        state.currentResults = state.flatQuotes;
+        renderResults(state.flatQuotes);
+        
+        // Save to localStorage for persistence
+        saveQuotesToLocalStorage();
+    } finally {
+        state.isProcessing = false;
+    }
 }
 
 // Add this function to save quotes to localStorage
@@ -317,57 +334,71 @@ function saveQuotesToLocalStorage() {
     }
 }
 
-// Modify the loadQuotes function to check localStorage first
-// async function loadQuotes() {
-//     try {
-//         elements.loading.style.display = 'block';
+// Load quotes from localStorage or server
+async function loadQuotes() {
+    try {
+        elements.loading.style.display = 'block';
         
-//         // Try to load from localStorage first
-//         const savedQuotes = localStorage.getItem('prabhupada_quotes');
-//         if (savedQuotes) {
-//             state.quotes = JSON.parse(savedQuotes);
-//             processQuotes();
-//             elements.loading.style.display = 'none';
-//             return;
-//         }
+        // Clear existing data to prevent duplicates
+        state.quotes = [];
+        state.flatQuotes = [];
+        state.commonWords = {};
         
-//         // If no localStorage data, fetch from file
-//         const response = await fetch("quotes.json?v=" + new Date().getTime());
-//         if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
-//         state.quotes = await response.json();
-//         processQuotes();
+        // Try to load from localStorage first
+        const savedQuotes = localStorage.getItem('prabhupada_quotes');
+        if (savedQuotes) {
+            state.quotes = JSON.parse(savedQuotes);
+            processQuotes();
+            elements.loading.style.display = 'none';
+            return;
+        }
         
-//         // Save to localStorage for future use
-//         saveQuotesToLocalStorage();
+        // If no localStorage data, fetch from file
+        const response = await fetch("quotes.json?v=" + new Date().getTime());
+        if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
+        state.quotes = await response.json();
+        processQuotes();
         
-//         elements.loading.style.display = 'none';
-//     } catch (error) {
-//         console.error("Error loading quotes:", error);
-//         elements.loading.style.display = 'none';
-//         elements.results.innerHTML = `<div class="error">Error loading quotes: ${error.message}</div>`;
-//     }
-// }
+        // Save to localStorage for future use
+        saveQuotesToLocalStorage();
+        
+        elements.loading.style.display = 'none';
+    } catch (error) {
+        console.error("Error loading quotes:", error);
+        elements.loading.style.display = 'none';
+        elements.results.innerHTML = `<div class="error">Error loading quotes: ${error.message}</div>`;
+    }
+}
 
 // Function to save quote to quotes.json file
 async function saveQuoteToFile(newQuote) {
     try {
         elements.loading.style.display = 'block';
         
-        // Send the new quote to our server endpoint to update quotes.json
-        const response = await fetch('/api/quotes', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newQuote)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save quote');
+        try {
+            // Try to send the new quote to our server endpoint to update quotes.json
+            const response = await fetch('/api/quotes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newQuote),
+                // Add a timeout to prevent long waiting times if server is not available
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to save quote');
+            }
+            
+            console.log('Quote saved successfully to server!');
+        } catch (serverError) {
+            console.warn("Could not save to server, using local storage fallback:", serverError);
+            // Server-side saving failed, but we'll continue with local storage
         }
         
-        // Update local state
+        // Always update local state regardless of server response
         state.quotes.push(newQuote);
         saveQuotesToLocalStorage();
         
@@ -375,10 +406,9 @@ async function saveQuoteToFile(newQuote) {
         processQuotes();
         
         elements.loading.style.display = 'none';
-        console.log('Quote saved successfully to quotes.json!');
-        showToast("Quote added successfully to permanent storage!");
+        showToast("Quote added successfully!");
     } catch (error) {
-        console.error("Error saving quote to file:", error);
+        console.error("Error saving quote:", error);
         elements.loading.style.display = 'none';
         showToast("Error saving quote. Please try again.", "error");
     }
@@ -586,6 +616,180 @@ function filterQuotesByClassAndTopic() {
     renderResults(results);
 }
 
+// Function to handle quote deletion
+function deleteQuote(quoteId) {
+    // Check if user is authenticated
+    if (!state.auth.isAuthenticated) {
+        showToast('You must be logged in to delete quotes!', 'error');
+        return;
+    }
+    
+    // Find the quote in flatQuotes
+    const quoteIndex = state.flatQuotes.findIndex(quote => quote.id === quoteId);
+    if (quoteIndex === -1) {
+        showToast('Quote not found!', 'error');
+        return;
+    }
+    
+    // Store the deleted quote for undo functionality
+    const deletedQuote = state.flatQuotes[quoteIndex];
+    state.deletedQuotes.push({
+        quote: deletedQuote,
+        timestamp: Date.now()
+    });
+    
+    // Remove from flatQuotes
+    state.flatQuotes.splice(quoteIndex, 1);
+    
+    // Find and remove from quotes array
+    const quoteRef = deletedQuote.ref;
+    const statementId = deletedQuote.id;
+    
+    for (let i = 0; i < state.quotes.length; i++) {
+        const quote = state.quotes[i];
+        if (quote.ref === quoteRef) {
+            // Find the statement within this quote
+            const statementIndex = quote.statements.findIndex(stmt => stmt.id === statementId);
+            if (statementIndex !== -1) {
+                // Remove just this statement
+                quote.statements.splice(statementIndex, 1);
+                
+                // If no statements left, remove the entire quote
+                if (quote.statements.length === 0) {
+                    state.quotes.splice(i, 1);
+                }
+                break;
+            }
+        }
+    }
+    
+    // Update current results and render
+    state.currentResults = state.flatQuotes;
+    renderResults(state.flatQuotes);
+    
+    // Save to localStorage
+    saveQuotesToLocalStorage();
+    
+    // Save to server
+    saveQuotesToServer();
+    
+    // Show undo button
+    if (elements.undoBtn) {
+        elements.undoBtn.style.display = 'block';
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (state.deletedQuotes.length > 0) {
+                const oldestDeletion = state.deletedQuotes[0].timestamp;
+                const now = Date.now();
+                if (now - oldestDeletion > 10000) {
+                    state.deletedQuotes.shift(); // Remove oldest deletion
+                }
+                if (state.deletedQuotes.length === 0) {
+                    elements.undoBtn.style.display = 'none';
+                }
+            }
+        }, 10000);
+    }
+    
+    showToast('Quote deleted successfully!');
+}
+
+// Function to handle undo of quote deletion
+function handleUndo() {
+    if (state.deletedQuotes.length === 0) {
+        showToast('Nothing to undo!', 'error');
+        return;
+    }
+    
+    // Get the most recently deleted quote
+    const deletedItem = state.deletedQuotes.pop();
+    const deletedQuote = deletedItem.quote;
+    
+    // Find if the quote reference already exists
+    let quoteExists = false;
+    let existingQuoteIndex = -1;
+    
+    for (let i = 0; i < state.quotes.length; i++) {
+        if (state.quotes[i].ref === deletedQuote.ref) {
+            quoteExists = true;
+            existingQuoteIndex = i;
+            break;
+        }
+    }
+    
+    // Create statement object
+    const statement = {
+        statement: deletedQuote.statement,
+        tags: deletedQuote.tags || [],
+        keywords: deletedQuote.keywords || [],
+        id: deletedQuote.id
+    };
+    
+    if (quoteExists) {
+        // Add statement to existing quote
+        state.quotes[existingQuoteIndex].statements.push(statement);
+    } else {
+        // Create new quote object
+        const newQuote = {
+            ref: deletedQuote.ref,
+            speaker: deletedQuote.speaker || "",
+            date: deletedQuote.date || "",
+            location: deletedQuote.location || "",
+            lecture: deletedQuote.lecture || "",
+            statements: [statement]
+        };
+        state.quotes.push(newQuote);
+    }
+    
+    // Add back to flatQuotes
+    state.flatQuotes.push(deletedQuote);
+    
+    // Update current results and render
+    state.currentResults = state.flatQuotes;
+    renderResults(state.flatQuotes);
+    
+    // Save to localStorage
+    saveQuotesToLocalStorage();
+    
+    // Save to server
+    saveQuotesToServer();
+    
+    // Hide undo button if no more deleted quotes
+    if (state.deletedQuotes.length === 0 && elements.undoBtn) {
+        elements.undoBtn.style.display = 'none';
+    }
+    
+    showToast('Quote restored successfully!');
+}
+
+// Function to save quotes to server
+async function saveQuotesToServer() {
+    try {
+        elements.loading.style.display = 'block';
+        
+        // Send the updated quotes to our server endpoint
+        const response = await fetch('/api/quotes/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(state.quotes)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save quotes');
+        }
+        
+        elements.loading.style.display = 'none';
+        console.log('Quotes saved successfully to server!');
+    } catch (error) {
+        console.error("Error saving quotes to server:", error);
+        elements.loading.style.display = 'none';
+        showToast("Error saving changes to server. Your changes are saved locally.", "error");
+    }
+}
+
 function renderResults(data) {
     elements.results.innerHTML = "";
 
@@ -630,16 +834,38 @@ function renderResults(data) {
             // If no specific quotecard tag is found, use default yellow accent
         }
 
-        card.innerHTML = `
+        // Create HTML structure with delete button for authenticated users
+        let cardHTML = `
             <div class="statement">"${item.statement}"</div>
             <div class="ref">— ${item.ref}</div>
-            <button class="copy-btn" title="Copy quote"><i class="fas fa-copy"></i></button>
+            <div class="quote-actions">
+                <button class="copy-btn" title="Copy quote"><i class="fas fa-copy"></i></button>
         `;
+        
+        // Add delete button if user is authenticated
+        if (state.auth.isAuthenticated) {
+            cardHTML += `<button class="delete-btn" title="Delete quote"><i class="fas fa-trash"></i></button>`;
+        }
+        
+        cardHTML += `</div>`;
+        card.innerHTML = cardHTML;
 
+        // Add event listener for copy button
         card.querySelector('.copy-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             copyToClipboard(`"${item.statement}" — ${item.ref}`);
         });
+        
+        // Add event listener for delete button if it exists
+        const deleteBtn = card.querySelector('.delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Are you sure you want to delete this quote?')) {
+                    deleteQuote(item.id);
+                }
+            });
+        }
 
         elements.results.appendChild(card);
     });
@@ -858,6 +1084,11 @@ async function refreshQuotes() {
         
         // Clear localStorage to force a fresh fetch
         localStorage.removeItem('prabhupada_quotes');
+        
+        // Clear existing data to prevent duplicates
+        state.quotes = [];
+        state.flatQuotes = [];
+        state.commonWords = {};
         
         // Fetch from file with cache-busting parameter
         const response = await fetch("quotes.json?v=" + new Date().getTime());

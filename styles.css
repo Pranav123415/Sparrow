@@ -96,6 +96,73 @@ body {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
+/* Quote action buttons styling */
+.quote-actions {
+    display: flex;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    gap: 8px;
+}
+
+/* Style for the delete button */
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #ff5252;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Style for the undo button */
+.undo-btn {
+    background-color: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.undo-btn:hover {
+    background-color: rgba(255, 213, 79, 0.25);
+    border-color: var(--accent);
+}
+
+.undo-btn i {
+    font-size: 12px;
+}
+
+/* Ensure the copy button has consistent styling */
+.copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.copy-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
 .suggestion-title {
     font-size: 1rem;
     color: #bbb;
