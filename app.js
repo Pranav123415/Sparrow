@@ -374,6 +374,7 @@ async function loadQuotes() {
 async function saveQuoteToFile(newQuote) {
     try {
         elements.loading.style.display = 'block';
+        let serverSaveSuccessful = false;
         
         try {
             // Try to send the new quote to our server endpoint to update quotes.json
@@ -393,20 +394,36 @@ async function saveQuoteToFile(newQuote) {
             }
             
             console.log('Quote saved successfully to server!');
+            serverSaveSuccessful = true;
         } catch (serverError) {
             console.warn("Could not save to server, using local storage fallback:", serverError);
             // Server-side saving failed, but we'll continue with local storage
+            
+            // Try to save all quotes to server to ensure consistency
+            try {
+                // Add to state.quotes first so it's included in the sync
+                state.quotes.push(newQuote);
+                await saveQuotesToServer();
+                serverSaveSuccessful = true;
+                console.log('Quote saved successfully to server via fallback!');
+            } catch (fallbackError) {
+                console.error("Fallback save to server failed:", fallbackError);
+            }
         }
         
-        // Always update local state regardless of server response
-        state.quotes.push(newQuote);
+        // If we haven't added the quote to state yet (direct server save succeeded)
+        if (!state.quotes.includes(newQuote)) {
+            state.quotes.push(newQuote);
+        }
+        
+        // Always save to localStorage for offline access
         saveQuotesToLocalStorage();
         
         // Refresh the quotes display
         processQuotes();
         
         elements.loading.style.display = 'none';
-        showToast("Quote added successfully!");
+        showToast(serverSaveSuccessful ? "Quote added successfully!" : "Quote added to local storage only. Server unavailable.");
     } catch (error) {
         console.error("Error saving quote:", error);
         elements.loading.style.display = 'none';
@@ -617,7 +634,7 @@ function filterQuotesByClassAndTopic() {
 }
 
 // Function to handle quote deletion
-function deleteQuote(quoteId) {
+async function deleteQuote(quoteId) {
     // Check if user is authenticated
     if (!state.auth.isAuthenticated) {
         showToast('You must be logged in to delete quotes!', 'error');
@@ -670,8 +687,41 @@ function deleteQuote(quoteId) {
     // Save to localStorage
     saveQuotesToLocalStorage();
     
-    // Save to server
-    saveQuotesToServer();
+    // Try to delete directly from server first
+    let serverDeleteSuccessful = false;
+    try {
+        elements.loading.style.display = 'block';
+        
+        // Call the server's DELETE endpoint
+        const response = await fetch(`/api/quotes/${quoteId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // Add a timeout to prevent long waiting times if server is not available
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to delete quote from server');
+        }
+        
+        console.log('Quote deleted successfully from server!');
+        serverDeleteSuccessful = true;
+    } catch (serverError) {
+        console.warn("Could not delete from server, using local storage fallback:", serverError);
+        
+        // If server delete failed, try to sync all quotes
+        try {
+            await saveQuotesToServer();
+            serverDeleteSuccessful = true;
+        } catch (fallbackError) {
+            console.error("Fallback save to server failed:", fallbackError);
+        }
+    } finally {
+        elements.loading.style.display = 'none';
+    }
     
     // Show undo button
     if (elements.undoBtn) {
@@ -691,11 +741,11 @@ function deleteQuote(quoteId) {
         }, 10000);
     }
     
-    showToast('Quote deleted successfully!');
+    showToast(serverDeleteSuccessful ? 'Quote deleted successfully!' : 'Quote deleted from local storage only. Server unavailable.');
 }
 
 // Function to handle undo of quote deletion
-function handleUndo() {
+async function handleUndo() {
     if (state.deletedQuotes.length === 0) {
         showToast('Nothing to undo!', 'error');
         return;
@@ -725,12 +775,13 @@ function handleUndo() {
         id: deletedQuote.id
     };
     
+    let newQuote;
     if (quoteExists) {
         // Add statement to existing quote
         state.quotes[existingQuoteIndex].statements.push(statement);
     } else {
         // Create new quote object
-        const newQuote = {
+        newQuote = {
             ref: deletedQuote.ref,
             speaker: deletedQuote.speaker || "",
             date: deletedQuote.date || "",
@@ -751,15 +802,55 @@ function handleUndo() {
     // Save to localStorage
     saveQuotesToLocalStorage();
     
-    // Save to server
-    saveQuotesToServer();
+    // Try to update server directly
+    let serverUpdateSuccessful = false;
+    try {
+        elements.loading.style.display = 'block';
+        
+        // If it's a new quote, try to add it directly
+        if (!quoteExists && newQuote) {
+            const response = await fetch('/api/quotes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newQuote),
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to restore quote');
+            }
+        } else {
+            // Otherwise update all quotes
+            await saveQuotesToServer();
+        }
+        
+        console.log('Quote restored successfully to server!');
+        serverUpdateSuccessful = true;
+    } catch (serverError) {
+        console.warn("Could not restore to server, using local storage fallback:", serverError);
+        
+        // If direct method failed, try to sync all quotes
+        if (!serverUpdateSuccessful) {
+            try {
+                await saveQuotesToServer();
+                serverUpdateSuccessful = true;
+            } catch (fallbackError) {
+                console.error("Fallback save to server failed:", fallbackError);
+            }
+        }
+    } finally {
+        elements.loading.style.display = 'none';
+    }
     
     // Hide undo button if no more deleted quotes
     if (state.deletedQuotes.length === 0 && elements.undoBtn) {
         elements.undoBtn.style.display = 'none';
     }
     
-    showToast('Quote restored successfully!');
+    showToast(serverUpdateSuccessful ? 'Quote restored successfully!' : 'Quote restored to local storage only. Server unavailable.');
 }
 
 // Function to save quotes to server
