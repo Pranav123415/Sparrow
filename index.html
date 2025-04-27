@@ -25,7 +25,7 @@
         <div class="container">
             <div class="search-filters-wrapper">
                 <div class="search-wrapper">
-                    <input type="text" id="search" placeholder="Search by reference (BG, SB), keyword, or meaning..." />
+                    <input type="text" id="search" placeholder="Search by reference (BG, SB), keyword, or meaning..." autocomplete="off" />
                     <i class="fas fa-search search-icon"></i>
                 </div>
                 <div class="actions">
@@ -66,11 +66,11 @@
                 <p class="auth-message">Authentication required to add quotes</p>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter username">
+                    <input type="text" id="username" placeholder="Enter username" autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter password">
+                    <input type="password" id="password" placeholder="Enter password" autocomplete="current-password">
                 </div>
                 <div class="form-actions">
                     <button id="loginBtn" class="btn login-btn">Login</button>
@@ -85,11 +85,11 @@
                 </div>
                 <div class="form-group">
                     <label for="quoteReference">Reference</label>
-                    <input type="text" id="quoteReference" required placeholder="e.g., Śrīla Prabhupāda lecture on Bg 2.48 in New York in 1966">
+                    <input type="text" id="quoteReference" required placeholder="e.g., Śrīla Prabhupāda lecture on Bg 2.48 in New York in 1966" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label for="quoteSpeaker">Speaker</label>
-                    <input type="text" id="quoteSpeaker" placeholder="e.g., Śrīla Prabhupāda" value="Śrīla Prabhupāda">
+                    <input type="text" id="quoteSpeaker" placeholder="e.g., Śrīla Prabhupāda" value="Śrīla Prabhupāda" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label for="quoteCategory">Category</label>
@@ -104,7 +104,7 @@
                 </div>
                 <div class="form-group">
                     <label for="quoteKeywords">Keywords (comma separated)</label>
-                    <input type="text" id="quoteKeywords" placeholder="e.g., karma, duty, detachment">
+                    <input type="text" id="quoteKeywords" placeholder="e.g., karma, duty, detachment" autocomplete="off">
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn submit-btn">Submit Quote</button>

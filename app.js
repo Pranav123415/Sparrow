@@ -167,7 +167,7 @@ function checkAuthStatus() {
     }
 }
 
-function handleQuoteSubmission(e) {
+async function handleQuoteSubmission(e) {
     e.preventDefault();
     
     // Check if user is authenticated
@@ -227,13 +227,26 @@ function handleQuoteSubmission(e) {
         ]
     };
     
-    // Add to local state and save to quotes.json
-    addQuoteToLocalState(newQuote);
-    saveQuoteToFile(newQuote);
-    
-    // Close the modal and show success message
-    closeQuoteModal();
-    // Note: Success toast is now shown in saveQuoteToFile function
+    // First save to server/file, then add to local state if successful
+    // This prevents duplicate quotes and ensures server consistency
+    try {
+        // Show loading indicator
+        elements.loading.style.display = 'block';
+        
+        // First save to file/server
+        await saveQuoteToFile(newQuote);
+        
+        // Then add to local state only once
+        addQuoteToLocalState(newQuote);
+        
+        // Close the modal
+        closeQuoteModal();
+    } catch (error) {
+        console.error("Error in quote submission:", error);
+        showToast("Error adding quote. Please try again.", "error");
+    } finally {
+        elements.loading.style.display = 'none';
+    }
 }
 
 // Helper functions for quote submission
@@ -395,25 +408,21 @@ async function saveQuoteToFile(newQuote) {
             
             console.log('Quote saved successfully to server!');
             serverSaveSuccessful = true;
+            
+            // Quote will be added to state.quotes in addQuoteToLocalState function
+            // No need to add it here again
         } catch (serverError) {
             console.warn("Could not save to server, using local storage fallback:", serverError);
             // Server-side saving failed, but we'll continue with local storage
             
             // Try to save all quotes to server to ensure consistency
             try {
-                // Add to state.quotes first so it's included in the sync
-                state.quotes.push(newQuote);
                 await saveQuotesToServer();
                 serverSaveSuccessful = true;
                 console.log('Quote saved successfully to server via fallback!');
             } catch (fallbackError) {
                 console.error("Fallback save to server failed:", fallbackError);
             }
-        }
-        
-        // If we haven't added the quote to state yet (direct server save succeeded)
-        if (!state.quotes.includes(newQuote)) {
-            state.quotes.push(newQuote);
         }
         
         // Always save to localStorage for offline access
@@ -432,7 +441,11 @@ async function saveQuoteToFile(newQuote) {
 }
 
 function processQuotes() {
+    // Clear all existing data to prevent duplicates
     state.flatQuotes = [];
+    state.currentResults = [];
+    elements.results.innerHTML = '';
+    
     const topicSet = new Set(["superman", "lila-amrita", "sb", "cc", "bgatis"]);
     const wordMap = {};
 
@@ -648,100 +661,117 @@ async function deleteQuote(quoteId) {
         return;
     }
     
-    // Store the deleted quote for undo functionality
-    const deletedQuote = state.flatQuotes[quoteIndex];
-    state.deletedQuotes.push({
-        quote: deletedQuote,
-        timestamp: Date.now()
-    });
-    
-    // Remove from flatQuotes
-    state.flatQuotes.splice(quoteIndex, 1);
-    
-    // Find and remove from quotes array
-    const quoteRef = deletedQuote.ref;
-    const statementId = deletedQuote.id;
-    
-    for (let i = 0; i < state.quotes.length; i++) {
-        const quote = state.quotes[i];
-        if (quote.ref === quoteRef) {
-            // Find the statement within this quote
-            const statementIndex = quote.statements.findIndex(stmt => stmt.id === statementId);
-            if (statementIndex !== -1) {
-                // Remove just this statement
-                quote.statements.splice(statementIndex, 1);
-                
-                // If no statements left, remove the entire quote
-                if (quote.statements.length === 0) {
-                    state.quotes.splice(i, 1);
-                }
-                break;
-            }
-        }
-    }
-    
-    // Update current results and render
-    state.currentResults = state.flatQuotes;
-    renderResults(state.flatQuotes);
-    
-    // Save to localStorage
-    saveQuotesToLocalStorage();
-    
-    // Try to delete directly from server first
-    let serverDeleteSuccessful = false;
     try {
         elements.loading.style.display = 'block';
         
-        // Call the server's DELETE endpoint
-        const response = await fetch(`/api/quotes/${quoteId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            // Add a timeout to prevent long waiting times if server is not available
-            signal: AbortSignal.timeout(5000) // 5 second timeout
+        // Store the deleted quote for undo functionality
+        const deletedQuote = state.flatQuotes[quoteIndex];
+        state.deletedQuotes.push({
+            quote: deletedQuote,
+            timestamp: Date.now()
         });
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to delete quote from server');
-        }
-        
-        console.log('Quote deleted successfully from server!');
-        serverDeleteSuccessful = true;
-    } catch (serverError) {
-        console.warn("Could not delete from server, using local storage fallback:", serverError);
-        
-        // If server delete failed, try to sync all quotes
+        // Try to delete from server first
+        let serverDeleteSuccessful = false;
         try {
-            await saveQuotesToServer();
+            // Call the server's DELETE endpoint
+            const response = await fetch(`/api/quotes/${quoteId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                // Add a timeout to prevent long waiting times if server is not available
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete quote from server');
+            }
+            
+            console.log('Quote deleted successfully from server!');
             serverDeleteSuccessful = true;
-        } catch (fallbackError) {
-            console.error("Fallback save to server failed:", fallbackError);
+        } catch (serverError) {
+            console.warn("Could not delete from server, using local storage fallback:", serverError);
+            
+            // If server delete failed, we'll update the local state and try to sync later
+            serverDeleteSuccessful = false;
         }
+        
+        // Only update local state if server delete was successful or we're in offline mode
+        if (serverDeleteSuccessful || !navigator.onLine) {
+            // Remove from flatQuotes
+            state.flatQuotes.splice(quoteIndex, 1);
+            
+            // Find and remove from quotes array
+            const quoteRef = deletedQuote.ref;
+            const statementId = deletedQuote.id;
+            
+            for (let i = 0; i < state.quotes.length; i++) {
+                const quote = state.quotes[i];
+                if (quote.ref === quoteRef) {
+                    // Find the statement within this quote
+                    const statementIndex = quote.statements.findIndex(stmt => stmt.id === statementId);
+                    if (statementIndex !== -1) {
+                        // Remove just this statement
+                        quote.statements.splice(statementIndex, 1);
+                        
+                        // If no statements left, remove the entire quote
+                        if (quote.statements.length === 0) {
+                            state.quotes.splice(i, 1);
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Update current results and render
+            state.currentResults = state.flatQuotes;
+            renderResults(state.flatQuotes);
+            
+            // Save to localStorage
+            saveQuotesToLocalStorage();
+            
+            // If server delete failed but we're online, try to sync all quotes
+            if (!serverDeleteSuccessful && navigator.onLine) {
+                try {
+                    await saveQuotesToServer();
+                    console.log('Quote deleted successfully from server via fallback!');
+                    serverDeleteSuccessful = true;
+                } catch (fallbackError) {
+                    console.error("Fallback delete from server failed:", fallbackError);
+                }
+            }
+            
+            // Show undo button
+            if (elements.undoBtn) {
+                elements.undoBtn.style.display = 'block';
+                // Auto-hide after 10 seconds
+                setTimeout(() => {
+                    if (state.deletedQuotes.length > 0) {
+                        const oldestDeletion = state.deletedQuotes[0].timestamp;
+                        const now = Date.now();
+                        if (now - oldestDeletion > 10000) {
+                            state.deletedQuotes.shift(); // Remove oldest deletion
+                        }
+                        if (state.deletedQuotes.length === 0) {
+                            elements.undoBtn.style.display = 'none';
+                        }
+                    }
+                }, 10000);
+            }
+            
+            showToast(serverDeleteSuccessful ? "Quote deleted successfully!" : "Quote deleted from local storage only. Server unavailable.");
+        } else {
+            // If we couldn't delete from server and we're online, don't update local state
+            showToast("Failed to delete quote from server. Please try again.", "error");
+        }
+    } catch (error) {
+        console.error("Error deleting quote:", error);
+        showToast("Error deleting quote. Please try again.", "error");
     } finally {
         elements.loading.style.display = 'none';
     }
-    
-    // Show undo button
-    if (elements.undoBtn) {
-        elements.undoBtn.style.display = 'block';
-        // Auto-hide after 10 seconds
-        setTimeout(() => {
-            if (state.deletedQuotes.length > 0) {
-                const oldestDeletion = state.deletedQuotes[0].timestamp;
-                const now = Date.now();
-                if (now - oldestDeletion > 10000) {
-                    state.deletedQuotes.shift(); // Remove oldest deletion
-                }
-                if (state.deletedQuotes.length === 0) {
-                    elements.undoBtn.style.display = 'none';
-                }
-            }
-        }, 10000);
-    }
-    
-    showToast(serverDeleteSuccessful ? 'Quote deleted successfully!' : 'Quote deleted from local storage only. Server unavailable.');
 }
 
 // Function to handle undo of quote deletion
@@ -1180,12 +1210,17 @@ async function refreshQuotes() {
         state.quotes = [];
         state.flatQuotes = [];
         state.commonWords = {};
+        state.currentResults = [];
         
         // Fetch from file with cache-busting parameter
         const response = await fetch("quotes.json?v=" + new Date().getTime());
         if (!response.ok) throw new Error(`Failed to load quotes: ${response.status}`);
         
-        state.quotes = await response.json();
+        // Replace state.quotes with the fresh data from server
+        const freshQuotes = await response.json();
+        state.quotes = freshQuotes;
+        
+        // Process the quotes to update the UI
         processQuotes();
         
         // Save to localStorage for future use
